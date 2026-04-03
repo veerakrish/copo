@@ -1,0 +1,152 @@
+.saved-matrices-view {
+  width: 100%;
+  padding: 20px;
+}
+
+.view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  border-bottom: 2px solid #61dafb;
+  padding-bottom: 10px;
+}
+
+.view-header h2 {
+  margin: 0;
+  color: #282c34;
+}
+
+.projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.project-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e1e4e8;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.project-card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.project-card.expanded {
+  border-color: #61dafb;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.project-card-header {
+  padding: 20px 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  background-color: #fff;
+  transition: background-color 0.2s;
+}
+
+.project-card-header:hover {
+  background-color: #f8fbfd;
+}
+
+.project-info h3 {
+  margin: 0 0 5px 0;
+  color: #1a1a1a;
+  font-size: 1.25rem;
+}
+
+.project-date {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.project-stats {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.project-stats span {
+  font-weight: 600;
+  color: #28a745;
+  background: #e8f5e9;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+}
+
+.expand-button {
+  background: none;
+  border: 1px solid #61dafb;
+  color: #61dafb;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.expand-button:hover {
+  background-color: #61dafb;
+  color: white;
+}
+
+.project-card-body {
+  padding: 0 25px 25px 25px;
+  border-top: 1px solid #f0f0f0;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.matrix-table.small table {
+  font-size: 12px;
+  width: 100%;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+.matrix-table.small th, 
+.matrix-table.small td {
+  padding: 8px;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+.matrix-table.small th {
+  background-color: #282c34;
+  color: white;
+}
+
+.matrix-table.small .average-row td {
+  background-color: #e8f5e9;
+  font-weight: bold;
+}
+
+.no-projects-message {
+  text-align: center;
+  padding: 60px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  color: #666;
+  border: 2px dashed #dee2e6;
+}
+
+.loading-projects, .error-projects {
+  text-align: center;
+  padding: 40px;
+  font-size: 1.1rem;
+}
+
+.error-projects {
+  color: #dc3545;
+}

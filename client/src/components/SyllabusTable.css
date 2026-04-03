@@ -1,0 +1,10 @@
+.table-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.table-header-container h2 {
+  margin: 0;
+}

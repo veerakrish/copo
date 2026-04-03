@@ -1,0 +1,143 @@
+.syllabus-input {
+  width: 100%;
+}
+
+.description {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.unit-section {
+  margin-bottom: 30px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  background-color: #fafafa;
+}
+
+.unit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #61dafb;
+}
+
+.unit-header h3 {
+  margin: 0;
+  color: #282c34;
+}
+
+.unit-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.unit-header-controls label {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.hours-info {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+/* Editable Syllabus Table */
+.syllabus-table-input {
+  overflow-x: auto;
+}
+
+.syllabus-table-input table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.syllabus-table-input th {
+  background-color: #282c34;
+  color: white;
+  padding: 8px 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.syllabus-table-input td {
+  padding: 4px;
+  border-bottom: 1px solid #e0e0e0;
+  vertical-align: middle;
+}
+
+.sno-cell {
+  text-align: center;
+  font-weight: 600;
+  color: #666;
+}
+
+.table-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.table-input:focus {
+  border-color: #61dafb;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.2);
+}
+
+.topic-input {
+  min-width: 200px;
+}
+
+.hours-input {
+  width: 60px;
+  text-align: center;
+}
+
+.co-input-cell {
+  width: 80px;
+}
+
+.po-input {
+  min-width: 120px;
+}
+
+.pso-input {
+  min-width: 80px;
+}
+
+.btn-remove-row {
+  padding: 2px 8px !important;
+  font-size: 12px !important;
+  line-height: 1;
+}
+
+.add-topic-btn {
+  margin-top: 8px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+  .unit-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .syllabus-table-input {
+    font-size: 11px;
+  }
+}

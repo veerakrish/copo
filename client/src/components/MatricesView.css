@@ -1,0 +1,244 @@
+.matrices-view {
+  width: 100%;
+}
+
+.matrices-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 15px;
+  margin-bottom: 30px;
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.finalize-section {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  justify-content: flex-end;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.action-buttons-group {
+  display: flex;
+  gap: 15px;
+}
+
+.course-name-input {
+  padding: 10px 15px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  min-width: 300px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.course-name-input:focus {
+  outline: none;
+  border-color: #28a745;
+}
+
+.status-banner {
+  padding: 12px 20px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.status-banner.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-banner.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.print-report-header {
+  display: none;
+}
+
+.justification-section {
+  display: none;
+  margin-bottom: 40px;
+  text-align: left;
+  background-color: #f9fbfd;
+  padding: 20px 30px;
+  border-radius: 8px;
+  border-left: 4px solid #61dafb;
+}
+
+.justification-section h2 {
+  color: #282c34;
+  margin-top: 0;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 10px;
+}
+
+.justification-section h3 {
+  color: #3a4a5c;
+  font-size: 1.1em;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+.justification-section p, .justification-section ul {
+  color: #444;
+  line-height: 1.6;
+}
+
+.matrix-container {
+  margin-bottom: 40px;
+}
+
+.matrix-table {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.matrix-table table {
+  font-size: 11px;
+}
+
+.matrix-table th {
+  background-color: #282c34;
+  color: white;
+  padding: 10px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.matrix-table td {
+  padding: 8px;
+  text-align: center;
+  min-width: 80px;
+  font-size: 11px;
+}
+
+.matrix-cell {
+  font-weight: 600;
+  color: #282c34;
+}
+
+.matrix-note {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 10px;
+  font-style: italic;
+}
+
+.matrix-table td:empty {
+  min-height: 20px;
+  background-color: #f9f9f9;
+}
+
+.weight-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: white;
+  font-size: 9px;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.legend {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.legend p {
+  margin: 5px 0;
+}
+
+.po-average {
+  margin-top: 15px;
+}
+
+.po-average table {
+  font-size: 14px;
+}
+
+.po-average th,
+.po-average td {
+  padding: 10px;
+  text-align: left;
+}
+
+/* Print Optimization */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 1cm;
+  }
+
+  body {
+    background-color: white !important;
+  }
+
+  .no-print, .nav-tabs, .App-header {
+    display: none !important;
+  }
+
+  .matrices-view {
+    padding: 0;
+  }
+
+  .print-report-header {
+    display: block;
+    text-align: center;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #333;
+    padding-bottom: 15px;
+  }
+
+  .justification-section {
+    display: block;
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    margin-bottom: 40px;
+  }
+
+  .matrix-container {
+    page-break-inside: avoid;
+    margin-bottom: 30px;
+  }
+
+  .matrix-table th {
+    background-color: #f0f0f0 !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .pso-header {
+    background-color: #e0e0e0 !important;
+  }
+}
+
+.pso-header {
+  background-color: #3a4a5c !important;
+  border-left: 2px solid #61dafb;
+}
+
+.pso-row td {
+  background-color: #f0f7ff;
+}
+
+.average-row td {
+  background-color: #e8f5e9;
+  border-top: 2px solid #282c34;
+  font-weight: 700;
+}
