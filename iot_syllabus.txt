@@ -1,0 +1,32 @@
+UNIT-I
+Introduction to Internet of Things: Definition & Characteristics of IoT, Physical design
+of IoT-Things in IoT, IoT protocols, Logical Design of IoT- IoT Functional Blocks, IoT
+Communication Models & API’s, IoT levels and deployment templates.
+IoT Network Architecture and Design: Drivers Behind New Network Architectures,
+Comparing IoT Architectures, A Simplified IoT Architecture.
+
+UNIT-II
+Communication Technologies: wired Communication Technologies, wireless
+Communication Technologies.
+IoT Access Technologies: PHY/MAC Layer (IEEE 802.15.4), LoRAWAN, RPL.
+Message Communication Protocols for Connected Devices - CoAP, XMPP, MQTT.
+
+UNIT-III
+IOT Physical devices and Endpoints: Basic building blocks of an IOT device.
+Sensors, Participatory sensing, RFIDs: Sensor Technology, Participatory sensing,
+Industrial IOT and Automotive IOT, Actuator, Radio Frequency Identification technology.
+Programming with Arduino: Features of Arduino, Components of Arduino board,
+Arduino IDE, Programming Elements, Case Studies: Traffic control system, DHT Sensor
+with Arduino.
+
+UNIT-IV
+Data Acquiring, Organising, Processing and Analytics: Introduction, Data Acquiring
+and storage, Organising the Data, Transaction, Business Processes, Integration and
+Enterprise Systems, Analytics, Knowledge Acquiring, Managing and Storing Processes.
+
+UNIT-V
+IoT Privacy, Security and Vulnerabilities Solutions: Vulnerabilities, Security
+Requirements and Threat Analysis, IoT Security Tomography and Layered Attacker model,
+Identity management and establishment, Access control secure message communication,
+Security models, profiles and protocols for IoT.
+Case studies illustrating IoT Design: Home Automation, Environment, Agriculture
