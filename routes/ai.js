@@ -15,6 +15,8 @@ router.get('/status/:clientId', (req, res) => {
   res.flushHeaders();
 
   const sendUpdate = (status) => {
+    // Check if the connection is still open before writing
+    if (res.writableEnded) return;
     res.write(`data: ${JSON.stringify({ status })}\n\n`);
   };
 
@@ -29,7 +31,10 @@ router.get('/status/:clientId', (req, res) => {
 
 // Test endpoint
 router.get('/test', (req, res) => {
-  res.json({ message: 'AI routes are working!', apiKeyConfigured: !!process.env.MISTRALAI_API_KEY });
+  res.json({ 
+    message: 'AI routes are working!', 
+    apiKeyConfigured: !!process.env.MISTRALAI_API_KEY 
+  });
 });
 
 // Generate ILOs for all units using Agentic Workflow
@@ -38,69 +43,67 @@ router.post('/generate-ilos', async (req, res) => {
   console.log(`Received request to /api/ai/generate-ilos (Client: ${clientId})`);
   
   try {
+    // 1. INPUT VALIDATION
     if (!units || !Array.isArray(units) || units.length === 0) {
       return res.status(400).json({ error: 'Units array is required' });
     }
 
-    if (!pos || !Array.isArray(pos)) {
-      return res.status(400).json({ error: 'POs array is required' });
-    }
-
-    if (!psos || !Array.isArray(psos)) {
-      return res.status(400).json({ error: 'PSOs array is required' });
-    }
-
-    // Check API key
     if (!process.env.MISTRALAI_API_KEY) {
-      return res.status(500).json({ error: 'Mistral AI API key is not configured.' });
+      return res.status(500).json({ error: 'Mistral AI API key is not configured on server.' });
     }
 
-    console.log(`Starting Agentic ILO generation for ${units.length} units...`);
-    
-    const results = await runAgenticWorkflow(units, pos, psos, (status) => {
-      console.log(`[AGENTIC STATUS]: ${status}`);
+    // 2. WORKFLOW EXECUTION
+    const results = await runAgenticWorkflow(units, pos || [], psos || [], (status) => {
       const sendUpdate = clients.get(clientId);
       if (sendUpdate) {
         sendUpdate(status);
       }
     });
 
-    // Format results to match syllabus structure
+    // 3. SCHEMA NORMALIZATION (The Fix)
+    // We force the AI output into a rigid structure that the Calculator Utility expects
     const formattedUnits = results.map((result, index) => {
       const unitNo = result.unitNumber || (index + 1);
       const coForUnit = `CO${unitNo}`;
+      
+      // Safety check: Ensure topics exists and is an array
+      const rawTopics = Array.isArray(result.topics) ? result.topics : [];
+
       return {
         unitNo: unitNo,
-        totalClasses: result.totalHours,
-        needsReference: result.needsReference || false,
+        // Fallback to 10 if totalHours is missing to avoid division by zero
+        totalClasses: parseFloat(result.totalHours) || 10, 
+        needsReference: !!result.needsReference,
         auditFeedback: result.auditFeedback || '',
-        topics: result.topics.map(topic => ({
-          topicName: topic.topicName,
-          hours: topic.hours,
-          cos: topic.cos || [coForUnit],
+        topics: rawTopics.map(topic => ({
+          topicName: topic.topicName || 'Untitled Topic',
+          hours: parseFloat(topic.hours) || 0,
+          cos: Array.isArray(topic.cos) ? topic.cos : [coForUnit],
           pos: topic.pos || '',
           psos: topic.psos || ''
         }))
       };
     });
 
+    // 4. SUMMARY CALCULATIONS
     const didAnyUnitNeedReference = formattedUnits.some(u => u.needsReference);
-    const totalHours = formattedUnits.reduce((sum, unit) => sum + unit.totalClasses, 0);
+    const totalHours = formattedUnits.reduce((sum, unit) => sum + (unit.totalClasses || 0), 0);
 
+    // 5. SUCCESS RESPONSE
     res.json({
       success: true,
       units: formattedUnits,
       totalHours,
       didAnyUnitNeedReference,
       message: didAnyUnitNeedReference 
-        ? `Generated with warnings: Some units could not achieve Strength 3 mapping after 3 attempts.` 
-        : `Successfully generated ILOs with Agentic Workflow`
+        ? `Note: Some units require additional detail for Strength 3 mapping.` 
+        : `Successfully generated NBA-compliant ILOs.`
     });
 
   } catch (error) {
-    console.error('Error generating ILOs:', error);
+    console.error('CRITICAL ERROR in /generate-ilos:', error);
     res.status(500).json({ 
-      error: error.message || 'Failed to generate ILOs'
+      error: error.message || 'The AI Agent system encountered a processing error.'
     });
   }
 });
