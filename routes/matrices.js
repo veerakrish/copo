@@ -7,16 +7,12 @@ const FinalizedMatrix = require('../db/models/FinalizedMatrix');
 router.get('/finalized', async (req, res) => {
   try {
     const matrices = await FinalizedMatrix.find().sort({ createdAt: -1 });
-    
-    // Mongoose handles the format natively (no need for JSON.parse if it's Mixed)
-    // However, if articulationData is stored as a document structure, we just map over it.
     const result = matrices.map(doc => ({
       id: doc._id,
       course_name: doc.courseName,
       articulation_data: doc.articulationData,
       created_at: doc.createdAt
     }));
-    
     res.json(result);
   } catch (error) {
     console.error('Error fetching finalized matrices:', error.message);
@@ -27,17 +23,39 @@ router.get('/finalized', async (req, res) => {
 // Calculate all matrices
 router.post('/calculate', (req, res) => {
   try {
-    const { units, cos, pos, psos } = req.body;
+    // 1. Destructure data from the body
+    let { units, cos, pos, psos } = req.body;
     
     if (!units || !Array.isArray(units)) {
       return res.status(400).json({ error: 'Invalid units data' });
     }
 
-    const matrices = calculateMatrices(units, cos || [], pos || [], psos || []);
+    /**
+     * 2. DATA NORMALIZATION (The Fix)
+     * The AI uses 'totalHours', but the calculator uses 'totalClasses'.
+     * We ensure every unit has a valid 'totalClasses' denominator.
+     */
+    const normalizedUnits = units.map(unit => ({
+      ...unit,
+      // Use totalClasses if it exists, otherwise fall back to totalHours, otherwise 10
+      totalClasses: unit.totalClasses || unit.totalHours || 10,
+      // Ensure topics is an array so .forEach() doesn't crash
+      topics: unit.topics || [] 
+    }));
+
+    // 3. Run the calculation with the cleaned data
+    const matrices = calculateMatrices(normalizedUnits, cos || [], pos || [], psos || []);
+    
+    // 4. Return the successful calculation
     res.json(matrices);
+
   } catch (error) {
-    console.error('Error calculating matrices:', error);
-    res.status(500).json({ error: error.message });
+    // This catch block was catching the 'undefined' error and returning 500
+    console.error('Matrix Calculation Logic Error:', error);
+    res.status(500).json({ 
+      error: "Internal Calculation Error", 
+      message: error.message 
+    });
   }
 });
 
