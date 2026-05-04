@@ -7,8 +7,7 @@ import AISyllabusGenerator from './components/AISyllabusGenerator';
 import SavedMatricesView from './components/SavedMatricesView';
 
 // Import the utility directly to avoid unnecessary API calls
-import { calculateMatrices } from './utils/matrixCalculator';
-
+import { calculateMatrices } from '../../utils/matrixCalculator';
 // Default POs and PSOs
 const defaultPOs = [
   { poNo: 1, description: 'Engineering Knowledge' },
