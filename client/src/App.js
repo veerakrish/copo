@@ -6,6 +6,9 @@ import MatricesView from './components/MatricesView';
 import AISyllabusGenerator from './components/AISyllabusGenerator';
 import SavedMatricesView from './components/SavedMatricesView';
 
+// Import the utility directly to avoid unnecessary API calls
+import { calculateMatrices } from './utils/matrixCalculator';
+
 // Default POs and PSOs
 const defaultPOs = [
   { poNo: 1, description: 'Engineering Knowledge' },
@@ -34,7 +37,13 @@ function App() {
   const [activeTab, setActiveTab] = useState('ai-generator');
 
   const handleSyllabusSubmit = (data) => {
-    setSyllabusData(data);
+    // Ensure PO/PSO defaults are attached if missing
+    const fullData = {
+      ...data,
+      pos: data.pos || defaultPOs,
+      psos: data.psos || defaultPSOs
+    };
+    setSyllabusData(fullData);
     setActiveTab('table');
   };
 
@@ -43,26 +52,35 @@ function App() {
     setActiveTab('matrices');
   };
 
-  const handleAISyllabusGenerated = async (data) => {
-    setSyllabusData(data);
-    setActiveTab('table');
-    
-    // Automatically calculate matrices
-    try {
-      const response = await fetch('/api/matrices/calculate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
+  const handleAISyllabusGenerated = (data) => {
+    console.log("AI Syllabus Received:", data);
 
-      if (response.ok) {
-        const calculatedMatrices = await response.json();
-        setMatrices(calculatedMatrices);
-      }
+    // 1. Prepare data for calculation
+    // Ensure we use default POs/PSOs if the AI didn't return them
+    const finalData = {
+      ...data,
+      pos: data.pos && data.pos.length > 0 ? data.pos : defaultPOs,
+      psos: data.psos && data.psos.length > 0 ? data.psos : defaultPSOs
+    };
+
+    // 2. Local Calculation (Reliable & Fast)
+    try {
+      const calculated = calculateMatrices(
+        finalData.units,
+        null, // cos is handled internally by unitNo
+        finalData.pos,
+        finalData.psos
+      );
+
+      console.log("Matrices Calculated Successfully:", calculated);
+      
+      setSyllabusData(finalData);
+      setMatrices(calculated);
+      setActiveTab('table'); // Move to table first to let user see data
     } catch (err) {
-      console.error('Error calculating matrices:', err);
+      console.error("Matrix Calculation Failed:", err);
+      setSyllabusData(finalData);
+      setActiveTab('table');
     }
   };
 
@@ -120,6 +138,8 @@ function App() {
           <SyllabusInput 
             onSubmit={handleSyllabusSubmit}
             onCalculateMatrices={handleMatricesCalculate}
+            pos={defaultPOs}
+            psos={defaultPSOs}
           />
         )}
         {activeTab === 'table' && syllabusData && (
