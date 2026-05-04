@@ -5,20 +5,21 @@
 /**
  * Parse PO/PSO range notation (e.g., "PO1-PO4" or "PSO1,PSO2")
  */
-function parsePORange(poString) {
+export function parsePORange(poString) {
   const outcomes = [];
   if (!poString || typeof poString !== 'string') return outcomes;
   
-  const parts = poString.split(',');
+  // Split by commas or semi-colons
+  const parts = poString.split(/[,;]/);
   
   for (const part of parts) {
     const trimmed = part.trim();
     // Match range like PO1-PO4
     if (trimmed.includes('-')) {
-      const match = trimmed.match(/(PO|PSO)\s*(\d+)\s*-\s*(PO|PSO)\s*(\d+)/i);
+      const match = trimmed.match(/(?:PO|PSO)\s*(\d+)\s*-\s*(?:PO|PSO)\s*(\d+)/i);
       if (match) {
-        const start = parseInt(match[2]);
-        const end = parseInt(match[4]);
+        const start = parseInt(match[1]);
+        const end = parseInt(match[2]);
         if (!isNaN(start) && !isNaN(end)) {
           const min = Math.min(start, end);
           const max = Math.max(start, end);
@@ -28,10 +29,10 @@ function parsePORange(poString) {
         }
       }
     } else {
-      // Match single like PO1
-      const match = trimmed.match(/(PO|PSO)\s*(\d+)/i);
+      // Match single like PO1 or just "1"
+      const match = trimmed.match(/(?:PO|PSO)?\s*(\d+)/i);
       if (match) {
-        outcomes.push(parseInt(match[2]));
+        outcomes.push(parseInt(match[1]));
       }
     }
   }
@@ -45,15 +46,13 @@ function parsePORange(poString) {
  */
 function calculateMappingMatrix(units = [], type, outcomes = []) {
   const matrix = {};
-  
   const safeUnits = Array.isArray(units) ? units : [];
 
   safeUnits.forEach((unit, index) => {
-    // Use actual unitNo if available, otherwise fallback to index + 1
     const coNo = unit.unitNo || (index + 1);
     matrix[coNo] = {};
 
-    // Denominator safety: Use totalClasses or totalHours
+    // Denominator safety: default to 1 to avoid Division by Zero
     const denominator = parseFloat(unit.totalClasses) || parseFloat(unit.totalHours) || 1;
     const topics = Array.isArray(unit.topics) ? unit.topics : [];
 
@@ -82,10 +81,6 @@ function calculateMappingMatrix(units = [], type, outcomes = []) {
   return matrix;
 }
 
-/**
- * Calculate Strength Matrix
- * Displays the percentage of mapping
- */
 function calculateStrengthMatrix(mappingMatrix = {}) {
   const strengthMatrix = {};
   
@@ -97,7 +92,6 @@ function calculateStrengthMatrix(mappingMatrix = {}) {
       
       strengthMatrix[co][outNo] = {
         percentage: Math.round(percentage * 100) / 100,
-        // Helper values for the frontend
         numerator: cell.numerator,
         denominator: cell.denominator
       };
@@ -106,13 +100,6 @@ function calculateStrengthMatrix(mappingMatrix = {}) {
   return strengthMatrix;
 }
 
-/**
- * Calculate Articulation Matrix
- * Rules:
- * >= 70% -> 3
- * >= 50% -> 2
- * < 50%  -> 1 (If mapping exists)
- */
 function calculateArticulationMatrix(strengthMatrix = {}) {
   const articulationMatrix = {};
   
@@ -134,10 +121,6 @@ function calculateArticulationMatrix(strengthMatrix = {}) {
   return articulationMatrix;
 }
 
-/**
- * Calculate PO/PSO Averages
- * Only considers cells that have values
- */
 function calculateAverages(articulationMatrix = {}, outcomes = [], type) {
   const averages = {};
   
@@ -168,24 +151,20 @@ function calculateAverages(articulationMatrix = {}, outcomes = [], type) {
 /**
  * Main function to calculate all matrices
  */
-function calculateMatrices(units, cos, pos, psos) {
+export function calculateMatrices(units, cos, pos, psos) {
   const safeUnits = Array.isArray(units) ? units : [];
   const safePos = Array.isArray(pos) ? pos : [];
   const safePsos = Array.isArray(psos) ? psos : [];
 
-  // 1. Compute Mapping Matrix (Fractional Hours)
   const coPOMappingMatrix = calculateMappingMatrix(safeUnits, 'PO', safePos);
   const coPSOMappingMatrix = calculateMappingMatrix(safeUnits, 'PSO', safePsos);
 
-  // 2. Compute Strength Matrix (Percentages)
   const coPOStrengthMatrix = calculateStrengthMatrix(coPOMappingMatrix);
   const coPSOStrengthMatrix = calculateStrengthMatrix(coPSOMappingMatrix);
 
-  // 3. Compute Articulation Matrix (Weights 1, 2, 3)
   const coPOArticulationMatrix = calculateArticulationMatrix(coPOStrengthMatrix);
   const coPSOArticulationMatrix = calculateArticulationMatrix(coPSOStrengthMatrix);
 
-  // 4. Compute Column-wise Averages
   const poAverages = calculateAverages(coPOArticulationMatrix, safePos, 'PO');
   const psoAverages = calculateAverages(coPSOArticulationMatrix, safePsos, 'PSO');
 
@@ -200,8 +179,3 @@ function calculateMatrices(units, cos, pos, psos) {
     psoAverages
   };
 }
-
-module.exports = {
-  calculateMatrices,
-  parsePORange
-};
