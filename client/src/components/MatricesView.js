@@ -2,18 +2,23 @@ import React, { useState } from 'react';
 import './MatricesView.css';
 
 const MatricesView = ({ matrices, syllabusData }) => {
+  // Defensive Destructuring: Provide empty objects/arrays as fallbacks
   const { 
-    coPOMappingMatrix, coPOStrengthMatrix, coPOArticulationMatrix,
-    coPSOMappingMatrix, coPSOStrengthMatrix, coPSOArticulationMatrix,
-    poAverages, psoAverages 
-  } = matrices;
-  const { pos, psos } = syllabusData;
+    coPOMappingMatrix = {}, coPOStrengthMatrix = {}, coPOArticulationMatrix = {},
+    coPSOMappingMatrix = {}, coPSOStrengthMatrix = {}, coPSOArticulationMatrix = {},
+    poAverages = {}, psoAverages = {} 
+  } = matrices || {};
+
+  const { pos = [], psos = [] } = syllabusData || {};
 
   const [courseName, setCourseName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState({ type: '', message: '' });
 
-  const cos = Object.keys(coPOMappingMatrix).sort((a, b) => parseInt(a) - parseInt(b));
+  // Get CO keys safely and sort them numerically
+  const cos = Object.keys(coPOMappingMatrix).length > 0 
+    ? Object.keys(coPOMappingMatrix).sort((a, b) => parseInt(a) - parseInt(b))
+    : [1, 2, 3, 4, 5]; // Fallback if matrix is empty
   
   const formatCO = (co) => `CO${co}`;
 
@@ -23,11 +28,10 @@ const MatricesView = ({ matrices, syllabusData }) => {
     ...psos.map(p => ({ no: p.psoNo, type: 'PSO', label: `PSO${p.psoNo}` }))
   ];
 
+  // Helper for safe data access
   const getCellData = (co, outcome, poData, psoData) => {
-    if (outcome.type === 'PO') {
-      return poData[co] && poData[co][outcome.no] ? poData[co][outcome.no] : null;
-    }
-    return psoData[co] && psoData[co][outcome.no] ? psoData[co][outcome.no] : null;
+    const data = outcome.type === 'PO' ? poData : psoData;
+    return data && data[co] && data[co][outcome.no] !== undefined ? data[co][outcome.no] : null;
   };
 
   const downloadCSV = () => {
@@ -35,10 +39,8 @@ const MatricesView = ({ matrices, syllabusData }) => {
     
     const addMatrixToCSV = (title, poData, psoData, valueType) => {
       csvContent += `${title}\n`;
-      // Header row
       csvContent += `CO,${allOutcomes.map(o => o.label).join(',')}\n`;
       
-      // Data rows
       cos.forEach(co => {
         let row = formatCO(co);
         allOutcomes.forEach(out => {
@@ -46,19 +48,17 @@ const MatricesView = ({ matrices, syllabusData }) => {
           if (!cell) {
             row += `,`;
           } else if (valueType === 'mapping') {
-            row += `,="${cell.numerator}/${cell.denominator}"`; // Use ="..." to prevent excel date auto-formatting
+            row += `,="${cell.numerator}/${cell.denominator}"`;
           } else if (valueType === 'strength') {
             row += `,${cell.percentage}%`;
-          } else if (valueType === 'articulation') {
-            row += `,${cell}`;
           } else {
-            row += `,${cell}`;
+            // articulation or direct value
+            row += `,${typeof cell === 'object' ? (cell.weight || '') : cell}`;
           }
         });
         csvContent += row + "\n";
       });
 
-      // Add average row for articulation
       if (valueType === 'articulation') {
         let avgRow = `Average`;
         allOutcomes.forEach(out => {
@@ -68,7 +68,7 @@ const MatricesView = ({ matrices, syllabusData }) => {
         });
         csvContent += avgRow + "\n";
       }
-      csvContent += "\n"; // Empty line between tables
+      csvContent += "\n"; 
     };
 
     addMatrixToCSV('CO-PO-PSO Mapping Matrix', coPOMappingMatrix, coPSOMappingMatrix, 'mapping');
@@ -78,15 +78,13 @@ const MatricesView = ({ matrices, syllabusData }) => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "co_po_matrices.csv");
+    link.setAttribute("download", `${courseName || 'matrices'}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
   const handleFinalize = async () => {
     if (!courseName.trim()) {
@@ -98,7 +96,6 @@ const MatricesView = ({ matrices, syllabusData }) => {
     setSaveStatus({ type: '', message: '' });
 
     try {
-      // Prepare articulation data only
       const articulationData = {
         coPOArticulationMatrix,
         coPSOArticulationMatrix,
@@ -111,25 +108,17 @@ const MatricesView = ({ matrices, syllabusData }) => {
 
       const response = await fetch('/api/matrices/finalize', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          courseName,
-          articulationData
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseName, articulationData }),
       });
 
       const data = await response.json();
-
       if (response.ok) {
         setSaveStatus({ type: 'success', message: data.message });
-        setCourseName('');
       } else {
         throw new Error(data.error || 'Failed to save');
       }
     } catch (err) {
-      console.error('Error finalizing project:', err);
       setSaveStatus({ type: 'error', message: err.message });
     } finally {
       setIsSaving(false);
@@ -139,15 +128,6 @@ const MatricesView = ({ matrices, syllabusData }) => {
   const renderCombinedMatrix = (title, poData, psoData, valueType) => (
     <div className="matrix-container">
       <h2>{title}</h2>
-      {valueType === 'mapping' && (
-        <p className="matrix-note">Format: hours mapped / total hours. Blank cells indicate no mapping.</p>
-      )}
-      {valueType === 'strength' && (
-        <p className="matrix-note">Percentage = (mapped hours / total hours) × 100. Based on this: ≥70% → Weight 3, ≥50% → Weight 2, &lt;50% → Weight 1.</p>
-      )}
-      {valueType === 'articulation' && (
-        <p className="matrix-note">Weightage: 3 (High, ≥70%), 2 (Medium, ≥50%), 1 (Low, &lt;50%). Blank cells indicate no mapping.</p>
-      )}
       <div className="matrix-table">
         <table>
           <thead>
@@ -166,22 +146,15 @@ const MatricesView = ({ matrices, syllabusData }) => {
                 <td><strong>{formatCO(co)}</strong></td>
                 {allOutcomes.map(out => {
                   const cell = getCellData(co, out, poData, psoData);
-                  if (!cell) return <td key={out.label}></td>;
+                  if (!cell) return <td key={out.label}>-</td>;
 
                   if (valueType === 'mapping') {
                     return <td key={out.label} className="matrix-cell">{cell.numerator}/{cell.denominator}</td>;
                   }
                   if (valueType === 'strength') {
-                    return (
-                      <td key={out.label} className="matrix-cell">
-                        {cell.percentage}%
-                      </td>
-                    );
+                    return <td key={out.label} className="matrix-cell">{cell.percentage}%</td>;
                   }
-                  if (valueType === 'articulation') {
-                    return <td key={out.label} className="matrix-cell">{cell}</td>;
-                  }
-                  return <td key={out.label} className="matrix-cell">{cell}</td>;
+                  return <td key={out.label} className="matrix-cell">{typeof cell === 'object' ? cell.weight : cell}</td>;
                 })}
               </tr>
             ))}
@@ -190,7 +163,7 @@ const MatricesView = ({ matrices, syllabusData }) => {
                 <td><strong>Average</strong></td>
                 {allOutcomes.map(out => {
                   const avgData = out.type === 'PO' ? poAverages[out.no] : psoAverages[out.no];
-                  const avg = avgData && avgData.count > 0 ? Math.round(avgData.average * 100) / 100 : '';
+                  const avg = avgData && avgData.count > 0 ? avgData.average : '-';
                   return <td key={out.label} className="matrix-cell">{avg}</td>;
                 })}
               </tr>
@@ -207,7 +180,7 @@ const MatricesView = ({ matrices, syllabusData }) => {
         <div className="finalize-section">
           <input 
             type="text" 
-            placeholder="Enter Course Name (e.g., CS101 - IoT)"
+            placeholder="Course Name (e.g., CS301 - Microprocessors)"
             value={courseName}
             onChange={(e) => setCourseName(e.target.value)}
             className="course-name-input"
@@ -218,12 +191,12 @@ const MatricesView = ({ matrices, syllabusData }) => {
             onClick={handleFinalize}
             disabled={isSaving || !courseName.trim()}
           >
-            {isSaving ? 'Saving...' : 'Finalize & Save Project'}
+            {isSaving ? 'Finalizing...' : 'Finalize & Save'}
           </button>
         </div>
         <div className="action-buttons-group">
-          <button className="btn btn-secondary" onClick={downloadCSV}>Export Matrices to CSV</button>
-          <button className="btn btn-primary" onClick={handlePrint}>Print / Save as PDF Report</button>
+          <button className="btn btn-secondary" onClick={downloadCSV}>Export CSV</button>
+          <button className="btn btn-primary" onClick={handlePrint}>Print Report</button>
         </div>
       </div>
 
@@ -233,36 +206,15 @@ const MatricesView = ({ matrices, syllabusData }) => {
         </div>
       )}
 
-      <div className="print-report-header">
-        <h1>Course Syllabus and CO-PO-PSO Mapping Report</h1>
-      </div>
-
       <div className="justification-section">
-        <h2>Mapping Justification & Methodology</h2>
-        <p>This document presents the detailed mapping of Course Outcomes (COs) to Program Outcomes (POs) and Program Specific Outcomes (PSOs) based on an outcome-based education framework.</p>
-        
-        <h3>1. Fractional Hours & Topic-Level Mapping</h3>
-        <p>To ensure high fidelity in mapping, POs are mapped strictly at the <strong>topic level</strong> rather than broadly at the session level. We utilize fractional hours (e.g., 0.5, 1.5) to accurately reflect the genuine duration a specific outcome is exercised during complex, multi-topic sessions. This prevents credit inflation and ensures auditable alignment with NBA guidelines.</p>
-        
-        <h3>2. Matrix Computation Rules</h3>
-        <ul>
-          <li><strong>Mapping Matrix:</strong> Represents the ratio of (mapped hours for a PO under a CO) / (total hours for that CO).</li>
-          <li><strong>Strength Matrix:</strong> Converts the mapping ratio into a percentage.</li>
-          <li><strong>Articulation Matrix:</strong> Distributes weightage based on the strength threshold:
-            <ul>
-              <li>High (3): ≥ 70% alignment</li>
-              <li>Medium (2): 50% - 69% alignment</li>
-              <li>Low (1): &lt; 50% alignment</li>
-            </ul>
-          </li>
-          <li><strong>Averages:</strong> The bottom row of the Articulation Matrix computes the average weightage assigned to each PO/PSO across all COs.</li>
-        </ul>
+        <h2>NBA Compliance Report</h2>
+        <p>Generated by Agentic Auditor. Calculation utilizes fractional topic-level mapping for auditable transparency.</p>
       </div>
 
       <div className="matrices-content">
-        {renderCombinedMatrix('CO-PO-PSO Mapping Matrix', coPOMappingMatrix, coPSOMappingMatrix, 'mapping')}
-        {renderCombinedMatrix('CO-PO-PSO Strength Matrix', coPOStrengthMatrix, coPSOStrengthMatrix, 'strength')}
-        {renderCombinedMatrix('CO-PO-PSO Articulation Matrix', coPOArticulationMatrix, coPSOArticulationMatrix, 'articulation')}
+        {renderCombinedMatrix('1. Mapping Matrix', coPOMappingMatrix, coPSOMappingMatrix, 'mapping')}
+        {renderCombinedMatrix('2. Strength Matrix', coPOStrengthMatrix, coPSOStrengthMatrix, 'strength')}
+        {renderCombinedMatrix('3. Articulation Matrix', coPOArticulationMatrix, coPSOArticulationMatrix, 'articulation')}
       </div>
     </div>
   );
