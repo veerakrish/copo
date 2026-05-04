@@ -1,18 +1,16 @@
 const axios = require('axios');
 
-// Get API key and remove quotes if present (handles .env files with quoted values)
+// Get API key and remove quotes if present
 let MISTRAL_API_KEY = process.env.MISTRALAI_API_KEY || '';
 if (MISTRAL_API_KEY.startsWith('"') && MISTRAL_API_KEY.endsWith('"')) {
   MISTRAL_API_KEY = MISTRAL_API_KEY.slice(1, -1);
 }
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
 
-if (!MISTRAL_API_KEY) {
-  console.warn('Warning: MISTRALAI_API_KEY is not set in environment variables');
-}
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Generic helper to call Mistral AI
+ * Generic helper to call Mistral AI with advanced error handling for Rate Limits (429)
  */
 async function callMistral(prompt, model = 'mistral-large-latest', retries = 3) {
   let attempt = 0;
@@ -23,7 +21,7 @@ async function callMistral(prompt, model = 'mistral-large-latest', retries = 3) 
         {
           model: model,
           messages: [{ role: 'user', content: prompt }],
-          temperature: 0.2, // Low temperature for high consistency in JSON
+          temperature: 0.1, // Lowered for even stricter JSON adherence
           response_format: { type: 'json_object' }
         },
         {
@@ -31,7 +29,7 @@ async function callMistral(prompt, model = 'mistral-large-latest', retries = 3) 
             'Authorization': `Bearer ${MISTRAL_API_KEY}`,
             'Content-Type': 'application/json'
           },
-          timeout: 180000 // 180 seconds to allow complete Mistral LLM planning/auditing
+          timeout: 180000 
         }
       );
 
@@ -39,14 +37,25 @@ async function callMistral(prompt, model = 'mistral-large-latest', retries = 3) 
       return JSON.parse(content);
     } catch (error) {
       attempt++;
-      console.error(`Mistral AI Call Error (Attempt ${attempt}/${retries}):`, error.response?.data || error.message);
+      const statusCode = error.response?.status;
+      const errorData = error.response?.data || error.message;
+
+      console.error(`Mistral AI Call Error (Attempt ${attempt}/${retries}): Status ${statusCode}`, errorData);
+
       if (attempt >= retries) {
-        throw new Error(`Mistral AI error: ${error.message}`);
+        throw new Error(`Mistral AI error after ${retries} attempts: ${JSON.stringify(errorData)}`);
       }
-      // Exponential backoff logic
-      const delayMs = attempt * 2000; // 2s, 4s...
-      console.log(`Waiting ${delayMs}ms before retrying...`);
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+
+      // HANDLE 429 RATE LIMIT: Use a much longer backoff
+      if (statusCode === 429) {
+        const waitTime = attempt * 15000; // 15s, 30s... (Trial tiers need more time)
+        console.warn(`[RATE LIMIT] Waiting ${waitTime}ms before retrying...`);
+        await delay(waitTime);
+      } else {
+        // Standard error backoff
+        const delayMs = attempt * 3000; 
+        await delay(delayMs);
+      }
     }
   }
 }
@@ -57,17 +66,10 @@ async function callMistral(prompt, model = 'mistral-large-latest', retries = 3) 
 async function getBudgetPlan(units) {
   const unitsSummary = units.map((u, i) => `Unit ${i + 1}: ${u.text.substring(0, 100)}...`).join('\n');
   const prompt = `Role: Academic Project Manager.
-Task: You are given 5 units of a syllabus. Your job is to allocate instructional hours for each unit.
-Constraints:
-1. Total hours for all units must be exactly 50 hours.
-2. Individual units can take more or fewer hours (typically between 6 and 14 hours) based on complexity.
-3. Ensure the allocation logically follows the syllabus density.
-
+Task: Allocate exactly 50 instructional hours across 5 syllabus units.
 Syllabus Summary:
 ${unitsSummary}
-
-Output: A JSON object mapping unit numbers to their allowed hour capacity.
-Example: {"1": 12, "2": 8, "3": 10, "4": 10, "5": 10}`;
+Output: A JSON object. Example: {"1": 10, "2": 12, "3": 8, "4": 10, "5": 10}`;
 
   return await callMistral(prompt);
 }
@@ -80,65 +82,26 @@ async function generateUnitData(unit, unitNo, budget, pos, psos, coStatement) {
   const psoList = psos.map(p => `PSO${p.psoNo}: ${p.description}`).join('\n');
 
   const prompt = `Role: Expert Curriculum Designer.
-Task: Generate simple, crisp Intended Learning Outcomes (ILOs) for Unit ${unitNo}.
+Generate Intended Learning Outcomes (ILOs) for Unit ${unitNo}.
+Course Outcome: ${coStatement}
+Syllabus Content: ${unit.text}
+Target Budget: ${budget} hours
+POs: ${poList}
+PSOs: ${psoList}
 
-Course Outcome for this Unit:
-${coStatement}
+Rules:
+1. Total hours MUST be exactly ${budget}.
+2. Use fractional hours (0.5, 1.0, 1.5) to ensure specific topic mapping.
+3. Map at least 3 relevant POs per topic to ensure high alignment strength.
 
-Syllabus Content:
-${unit.text}
-
-Budget: ${budget} hours
-
-Available POs:
-${poList}
-
-Available PSOs:
-${psoList}
-
-CRITICAL RULES FOR ILO GENERATION:
-1. Each ILO MUST clearly state the specific topic(s) to be covered in that session (e.g., "Kirchhoff's voltage and current laws", "TCP/IP protocol stack").
-2. ILOs must be SHORT, SIMPLE, and CRISP — a single clear sentence per topic.
-3. ILOs must directly reflect the Course Outcome (CO${unitNo}) statement given above.
-4. Each ILO must meaningfully connect to the POs it is mapped to. Only map POs that are genuinely relevant to the topic.
-5. Use action verbs from Bloom's Taxonomy (Understand, Analyze, Design, Evaluate, Apply, Create) but keep the statement focused on WHAT topic is covered.
-6. FRACTIONAL HOURS: Topics can have fractional hours (0.5, 1.0, 1.5, or 2.0). A 2-hour session may contain multiple topics with different hour allocations. For example, a session could have: Topic A (1.0 hr) + Topic B (0.5 hr) + Topic C (0.5 hr) = 2.0 hrs. This ensures each PO only gets credit for the hours its topic genuinely occupies, making the mapping accurate and auditable.
-7. The total hours across all topics MUST equal exactly ${budget} hours.
-8. Map only POs that are genuinely relevant to each specific topic. Different topics in the same session can (and should) map to different POs.
-9. Map at least 2-3 relevant POs per topic.
-
-GOOD ILO examples (simple, topic-focused, with fractional hours):
-- "Understand the architecture and working of 8051 microcontroller" — 1.0 hr (PO1, PO2)
-- "Apply addressing modes in assembly programming" — 1.0 hr (PO1, PO3, PO5)
-- "Analyze network topologies and their applications in LAN design" — 1.5 hr (PO1, PO3, PO5)
-- "Simulate network configurations using Packet Tracer" — 0.5 hr (PO2, PO5)
-
-BAD ILO examples (vague, generic — DO NOT do this):
-- "Analyze data using modern tools" (too vague, no specific topic)
-- "Design and evaluate engineering solutions" (too generic)
-
-Output JSON format:
+Output JSON:
 {
   "unitNumber": ${unitNo},
   "totalHours": ${budget},
   "topics": [
-    {
-      "topicName": "Simple, crisp statement with specific topic covered",
-      "hours": 1.0,
-      "cos": ["CO${unitNo}"],
-      "pos": "PO1,PO2",
-      "psos": "PSO1"
-    },
-    {
-      "topicName": "Another topic with its own specific PO mapping",
-      "hours": 0.5,
-      "cos": ["CO${unitNo}"],
-      "pos": "PO3,PO5",
-      "psos": "PSO2"
-    }
+    { "topicName": "Statement", "hours": 1.0, "cos": ["CO${unitNo}"], "pos": "PO1,PO2,PO3", "psos": "PSO1" }
   ]
 }`;
-
   return await callMistral(prompt);
 }
 
@@ -146,19 +109,17 @@ Output JSON format:
  * Stage 3: The Auditor (The "Compliance" Agent)
  */
 async function auditUnitData(unitData, budget) {
+  const currentTotal = unitData.topics.reduce((s, t) => s + t.hours, 0);
   const prompt = `Role: NBA Accreditation Auditor.
 Input: ${JSON.stringify(unitData)}
-Target Budget: ${budget} hours
+Budget: ${budget} hours. Current Total: ${currentTotal}
 
-Audit Rules:
-1. Does the total hours of all topics equal exactly the budget? (Current total: ${unitData.topics.reduce((s, t) => s + t.hours, 0)}). 
-2. STRICT STRENGTH 3 CHECK: At least one PO or PSO must achieve Strength 3.  
-   Calculation: (Sum of hours for all topics mapped to PO_X / Unit Budget) * 100.  
-   If the result is >= 70% for at least one PO/PSO, it passes Strength 3.
-3. Are the ILOs simple, crisp, and topic-specific?
-4. Does each topic map only genuinely relevant POs (mapping exactly 3-4 POs per topic is preferred)?
+Audit:
+1. Hours Check: Total must be exactly ${budget}.
+2. Strength Check: At least one PO must cover >= 70% of unit hours.
+If passes all, status is APPROVED. If not, REJECT with feedback.
 
-Output: If passed, return {"status": "APPROVED"}. If failed, return {"status": "REJECT", "feedback": "Detailed reason why Strength 3 was not achieved or other quality issues"}.`;
+Output JSON: {"status": "APPROVED"} or {"status": "REJECT", "feedback": "reason"}`;
 
   return await callMistral(prompt);
 }
@@ -169,7 +130,6 @@ Output: If passed, return {"status": "APPROVED"}. If failed, return {"status": "
 async function runAgenticWorkflow(units, pos, psos, onStatusUpdate) {
   if (onStatusUpdate) onStatusUpdate('Planning Hours (Planner Agent)...');
   const budgetPlan = await getBudgetPlan(units);
-  console.log('Budget Plan:', budgetPlan);
 
   let finalizedUnits = [];
   for (let i = 0; i < units.length; i++) {
@@ -182,32 +142,32 @@ async function runAgenticWorkflow(units, pos, psos, onStatusUpdate) {
     let unitData;
 
     while (!approved && attempts < 3) {
-      if (onStatusUpdate) onStatusUpdate(`Mapping Unit ${unitNo} (Executor Agent) - Attempt ${attempts + 1}...`);
+      if (onStatusUpdate) onStatusUpdate(`Unit ${unitNo}: Generating ILOs (Attempt ${attempts + 1})...`);
       unitData = await generateUnitData(unit, unitNo, budget, pos, psos, unit.co || `CO${unitNo}`);
       
-      if (onStatusUpdate) onStatusUpdate(`Auditing Unit ${unitNo} (Auditor Agent)...`);
+      if (onStatusUpdate) onStatusUpdate(`Unit ${unitNo}: Auditing Alignment...`);
       const audit = await auditUnitData(unitData, budget);
       
       if (audit.status === "APPROVED") {
-        console.log(`Unit ${unitNo} APPROVED`);
         approved = true;
       } else {
-        const feedbackStr = typeof audit.feedback === 'string' ? audit.feedback : JSON.stringify(audit.feedback);
-        console.warn(`Unit ${unitNo} REJECTED: ${feedbackStr}`);
         attempts++;
         if (attempts === 3) {
-          console.warn(`Unit ${unitNo} failed 3 attempts. Marking for reference request.`);
           unitData.needsReference = true;
-          unitData.auditFeedback = feedbackStr;
+          unitData.auditFeedback = audit.feedback;
         }
       }
     }
     finalizedUnits.push(unitData);
+
+    // CRITICAL: Cool-down after each unit to prevent 429 Rate Limits
+    if (i < units.length - 1) {
+      if (onStatusUpdate) onStatusUpdate(`Cooling down API (10s) to avoid Rate Limits...`);
+      await delay(10000); 
+    }
   }
 
   return finalizedUnits;
 }
 
-module.exports = {
-  runAgenticWorkflow
-};
+module.exports = { runAgenticWorkflow };
